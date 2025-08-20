@@ -1,0 +1,10 @@
+{
+"sampleHz": 50,
+"breathCutoffHz": 0.5,
+"hpMinDeltaG": 0.005,
+"breathThreshG": 0.02,
+"breathRefractMs": 1500,
+"beatRefractMs": 400,
+"reportWindowMs": 60000,
+"calibrateMs": 3000
+}
