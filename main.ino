@@ -1,4 +1,51 @@
 #include <Wire.h>
+#include "MPU6050.h" // Jeff Rowberg library
+#include "ConfigOTA.h"
+
+
+// ==== I2C pins for ESP32 ====
+#define I2C_SDA 21
+#define I2C_SCL 22
+
+
+MPU6050 mpu;
+
+
+// ---- State ----
+float accelZFiltered = 0.0f; // low-pass (breathing)
+float accelZBaseline = 0.0f; // Z baseline (gravity/orientation)
+unsigned long lastBreathTime = 0, lastBeatTime = 0;
+int breathCount = 0, beatCount = 0;
+unsigned long startTime;
+
+
+static inline float lpfStep(float current, float target, float alpha){
+return current + alpha * (target - current);
+}
+
+
+void setup() {
+Serial.begin(115200);
+delay(200);
+
+
+// 1) Start Config OTA (connect STA, else AP fallback); change creds as needed
+ConfigOTA::instance().begin(
+"YourWiFiSSID", "YourWiFiPASS",
+/*enableAPFallback=*/true,
+/*apSsid=*/"ESP32-Config",
+/*apPass=*/"12345678",
+/*wifiTimeoutMs=*/8000
+);
+
+
+// 2) I2C
+Wire.begin(I2C_SDA, I2C_SCL);
+Wire.setClock(400000);
+
+
+// 3) Sensor init
+mpu.initialize();
 mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
 mpu.setDLPFMode(MPU6050_DLPF_BW_10);
 if (!mpu.testConnection()) {
@@ -58,34 +105,4 @@ const float alpha = dt / (RC + dt);
 accelZFiltered = lpfStep(accelZFiltered, accelZ, alpha);
 
 
-// Heartbeat proxy component
-float highpass = accelZ - accelZFiltered;
-
-
-unsigned long now = millis();
-
-
-// Breath detection
-if (accelZFiltered > cfg.breathThreshG && (now - lastBreathTime) > cfg.breathRefractMs) {
-breathCount++;
-lastBreathTime = now;
-}
-
-
-// Heartbeat detection
-if (fabs(highpass) > cfg.hpMinDeltaG && (now - lastBeatTime) > cfg.beatRefractMs) {
-beatCount++;
-lastBeatTime = now;
-}
-
-
-// Periodic report
-if (now - startTime >= cfg.reportWindowMs) {
-Serial.print("Breaths per minute: "); Serial.println(breathCount);
-Serial.print("Heartbeats per minute: "); Serial.println(beatCount);
-breathCount = 0; beatCount = 0; startTime = now;
-}
-
-
-delay(sampleDelayMs);
 }
