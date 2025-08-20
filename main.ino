@@ -1,5 +1,4 @@
 #include <Wire.h>
-mpu.initialize();
 mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_2);
 mpu.setDLPFMode(MPU6050_DLPF_BW_10);
 if (!mpu.testConnection()) {
